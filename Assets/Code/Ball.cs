@@ -19,29 +19,44 @@ public class Ball : MonoBehaviour
         Mass = mass;
         Restitution = restitution;
 
-        Velocity = Vector2.Zero;
-        Acceleration = Vector2.Zero;
+        Velocity = Vector2.zero;
+        Acceleration = Vector2.zero;
     }
 
-
-    public void Update(float dt, float frictionCoefficient, float gravity = 9.81f)
+    public Ball()
     {
+        transform.position = new Vector2(0f, 0f);
+        Radius = 5.0f;
+        Mass = 15.0f;
+        Restitution = 1;
+
+        Velocity = Vector2.zero;
+        Acceleration = Vector2.zero;
+    }
+
+    public void Tick()
+    {
+        float gravity = 9.81f;
+        float dt = Time.deltaTime;
+        float frictionCoefficient = 0.0f;
+
         if (!IsActive) return;
 
         ApplyFriction(dt, frictionCoefficient, gravity);
 
         Velocity += Acceleration * dt;
-        Position += Velocity * dt;
+        transform.position += new Vector3(Velocity.x, Velocity.y) * dt;
 
-        Acceleration = Vector2.Zero;
+        Acceleration = Vector2.zero;
 
-        if (Velocity.LengthSquared() < Mathf.Epsilon)
-            Velocity = Vector2.Zero;
+        if (Velocity.SqrMagnitude() < Mathf.Epsilon)
+            Velocity = Vector2.zero;
     }
 
     private void ApplyFriction(float dt, float mu, float g)
     {
-        if (Velocity.LengthSquared() <= 0) return;
+        if (Velocity.SqrMagnitude() < 0 || Mathf.Approximately(Velocity.SqrMagnitude(), 0))
+            return;
 
         Vector2 frictionDir = -Vector2.Normalize(Velocity);
         Vector2 friction = frictionDir * mu * g;
@@ -49,7 +64,7 @@ public class Ball : MonoBehaviour
         Velocity += friction * dt;
 
         if (Vector2.Dot(Velocity, frictionDir) > 0)
-            Velocity = Vector2.Zero;
+            Velocity = Vector2.zero;
     }
 
     public void AddForce(Vector2 force)
@@ -66,8 +81,8 @@ public class Ball : MonoBehaviour
     {
         if (!a.IsActive || !b.IsActive) return;
 
-        Vector2 normal = b.Position - a.Position;
-        float distance = normal.Length();
+        Vector2 normal = b.transform.position - a.transform.position;
+        float distance = normal.magnitude;
 
         float minDistance = a.Radius + b.Radius;
 
@@ -83,7 +98,7 @@ public class Ball : MonoBehaviour
         if (velAlongNormal > 0)
             return;
 
-        float e = MathF.Min(a.Restitution, b.Restitution);
+        float e = Mathf.Min(a.Restitution, b.Restitution);
 
         float j = -(1 + e) * velAlongNormal;
         j /= (1 / a.Mass + 1 / b.Mass);
@@ -97,47 +112,46 @@ public class Ball : MonoBehaviour
         float percent = 0.8f;
         float slop = 0.01f;
 
-        Vector2 correction = normal *
-            (MathF.Max(penetration - slop, 0) / (1 / a.Mass + 1 / b.Mass)) * percent;
+        Vector2 correction = normal * (Mathf.Max(penetration - slop, 0) / (1 / a.Mass + 1 / b.Mass)) * percent;
 
-        a.Position -= correction / a.Mass;
-        b.Position += correction / b.Mass;
+        a.gameObject.transform.position -= new Vector3(correction.x, correction.y) / a.Mass;
+        b.gameObject.transform.position += new Vector3(correction.x, correction.y) / b.Mass;
     }
 
-    public void ResolveWallCollision(float minX, float maxX, float minY, float maxY)
-    {
-        if (!IsActive) return;
-
-        if (Position.X - Radius < minX)
-        {
-            Position.X = minX + Radius;
-            Velocity.X *= -Restitution;
-        }
-
-        if (Position.X + Radius > maxX)
-        {
-            Position.X = maxX - Radius;
-            Velocity.X *= -Restitution;
-        }
-
-        if (Position.Y - Radius < minY)
-        {
-            Position.Y = minY + Radius;
-            Velocity.Y *= -Restitution;
-        }
-
-        if (Position.Y + Radius > maxY)
-        {
-            Position.Y = maxY - Radius;
-            Velocity.Y *= -Restitution;
-        }
-    }
+    //public void ResolveWallCollision(float minX, float maxX, float minY, float maxY)
+    //{
+    //    if (!IsActive) return;
+    //
+    //    if (transform.Position.x - Radius < minX)
+    //    {
+    //        transform.position.x = minX + Radius;
+    //        Velocity.x *= -Restitution;
+    //    }
+    //
+    //    if (transform.position.x + Radius > maxX)
+    //    {
+    //        transform.position = maxX - Radius;
+    //        Velocity.x *= -Restitution;
+    //    }
+    //
+    //    if (transform.position.y - Radius < minY)
+    //    {
+    //        transform.position.y = minY + Radius;
+    //        Velocity.y *= -Restitution;
+    //    }
+    //
+    //    if (transform.position.y + Radius > maxY)
+    //    {
+    //        Position.y = maxY - Radius;
+    //        Velocity.y *= -Restitution;
+    //    }
+    //}
 
     public void CheckHole(Vector2 holePosition, float holeRadius)
     {
         if (!IsActive) return;
 
-        float distance = Vector2.Distance(Position, holePosition);
+        float distance = Vector2.Distance(transform.position, holePosition);
 
         if (distance < holeRadius)
         {
