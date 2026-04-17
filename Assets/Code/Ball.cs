@@ -98,9 +98,9 @@ public class Ball : MonoBehaviour
         if (velAlongNormal > 0)
             return;
 
-        float e = Mathf.Min(a.Restitution, b.Restitution);
+        float minRestitution = Mathf.Min(a.Restitution, b.Restitution);
 
-        float j = -(1 + e) * velAlongNormal;
+        float j = -(1 + minRestitution) * velAlongNormal;
         j /= (1 / a.Mass + 1 / b.Mass);
 
         Vector2 impulse = j * normal;
@@ -149,7 +149,8 @@ public class Ball : MonoBehaviour
 
     public void CheckHole(Vector2 holePosition, float holeRadius)
     {
-        if (!IsActive) return;
+        if (!IsActive) 
+            return;
 
         float distance = Vector2.Distance(transform.position, holePosition);
 
