@@ -40,7 +40,8 @@ public class Ball : MonoBehaviour
         float dt = Time.deltaTime;
         float frictionCoefficient = 0.0f;
 
-        if (!IsActive) return;
+        if (!IsActive)
+            return;
 
         ApplyFriction(dt, frictionCoefficient, gravity);
 
@@ -149,7 +150,7 @@ public class Ball : MonoBehaviour
 
     public void CheckHole(Vector2 holePosition, float holeRadius)
     {
-        if (!IsActive) 
+        if (!IsActive)
             return;
 
         float distance = Vector2.Distance(transform.position, holePosition);
