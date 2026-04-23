@@ -12,9 +12,17 @@ struct Wall
 public class Ball : MonoBehaviour
 {
     private const float Gravity = 9.81f;
-
+    
     [SerializeField] private Wall wall;
     [SerializeField] private Vector2 velocity;
+    [SerializeField] private float radius;
+
+    Ball[] balls;
+
+    void Awake()
+    {
+
+    }
 
     void Update()
     {
@@ -36,14 +44,35 @@ public class Ball : MonoBehaviour
 
         float distance = Vector2.Distance(position, closest);
 
-        if (distance <= wall.thickness)
+        if (distance <= wall.thickness + radius)
         {
             Vector2 normal = (position - closest).normalized;
 
-            position = closest + normal * wall.thickness;
+            position = closest + normal * (wall.thickness + radius);
 
             velocity = Vector2.Reflect(velocity, normal);
         }
+
+       // foreach (Ball other in balls)
+       // {
+       //     if (other == this) 
+       //         continue;
+       //
+       //     Vector2 delta = (Vector2)transform.position - (Vector2)other.transform.position;
+       //     float ballsDistance = delta.magnitude;
+       //
+       //     float minDistance = radius + other.radius;
+       //
+       //     if (distance <= minDistance)
+       //     {
+       //         Vector2 normal = delta.normalized;
+       //
+       //         float penetration = minDistance - distance;
+       //
+       //         transform.position += (Vector3)(normal * (penetration * 0.5f));
+       //         other.transform.position -= (Vector3)(normal * (penetration * 0.5f));
+       //     }
+       // }
 
         transform.position = position;
     }
@@ -64,7 +93,7 @@ public class Ball : MonoBehaviour
         Gizmos.DrawLine(wall.pointA, wall.pointB);
 
         Gizmos.color = Color.white;
-        Gizmos.DrawSphere(position, 0.1f);
+        Gizmos.DrawSphere(position, radius);
 
         Gizmos.color = Color.green;
         Gizmos.DrawSphere(closest, 0.1f);
