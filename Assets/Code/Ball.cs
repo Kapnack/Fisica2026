@@ -2,113 +2,124 @@ using System;
 using UnityEngine;
 
 [Serializable]
-struct Wall
+public class Ball
 {
-    public Vector2 pointA;
-    public Vector2 pointB;
-    public float thickness;
-}
-
-public class Ball : MonoBehaviour
-{
-    private const float Gravity = 9.81f;
-    
-    [SerializeField] private Wall wall;
-    [SerializeField] private Vector2 velocity;
+    [SerializeField] private Vector2 position;
     [SerializeField] private float radius;
+    [SerializeField] private Vector2 velocity;
+    [SerializeField] private float restitution = 0.8f;
+    [SerializeField] private float mass = 1f;
+    [SerializeField] private float friction = 0.3f;
 
-    Ball[] balls;
+    public Vector2 Position => position;
+    public float Radius => radius;
 
-    void Awake()
+    float InvMass => (mass <= 0f) ? 0f : 1f / mass;
+
+    public void Integrate(float deltaTime)
     {
-
+        position += velocity * deltaTime;
     }
 
-    void Update()
+    public void CheckWallCollision(Wall wall)
     {
-        float dt = Time.deltaTime;
+        Vector2 wallVector = wall.pointB - wall.pointA;
+        float wallVectorSqrMag = Vector2.SqrMagnitude(wallVector);
 
-        velocity += Vector2.down * Gravity * dt;
+        if (wallVectorSqrMag <= Mathf.Epsilon)
+            return;
 
-        Vector2 position = transform.position;
-        position += velocity * dt;
+        Vector2 ballPointAVector = position - wall.pointA;
 
-        Vector2 AB = wall.pointB - wall.pointA;
-        Vector2 AP = position - wall.pointA;
+        float ballWallInterpolation = Vector2.Dot(ballPointAVector, wallVector) / wallVectorSqrMag;
+        ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
 
-        float t = Vector2.Dot(AP, AB) / Vector2.SqrMagnitude(AB);
+        Vector2 closestPointToWall = wall.pointA + wallVector * ballWallInterpolation;
 
-        t = Mathf.Clamp01(t);
+        Vector2 delta = position - closestPointToWall;
+        float dist = delta.magnitude;
 
-        Vector2 closest = wall.pointA + AB * t;
+        float minDist = wall.thickness + radius;
 
-        float distance = Vector2.Distance(position, closest);
+        if (dist > minDist)
+            return;
 
-        if (distance <= wall.thickness + radius)
-        {
-            Vector2 normal = (position - closest).normalized;
+        if (dist <= Mathf.Epsilon)
+            return;
 
-            position = closest + normal * (wall.thickness + radius);
+        Vector2 normal = delta / dist;
 
-            velocity = Vector2.Reflect(velocity, normal);
-        }
+        position = closestPointToWall + normal * minDist;
 
-       // foreach (Ball other in balls)
-       // {
-       //     if (other == this) 
-       //         continue;
-       //
-       //     Vector2 delta = (Vector2)transform.position - (Vector2)other.transform.position;
-       //     float ballsDistance = delta.magnitude;
-       //
-       //     float minDistance = radius + other.radius;
-       //
-       //     if (distance <= minDistance)
-       //     {
-       //         Vector2 normal = delta.normalized;
-       //
-       //         float penetration = minDistance - distance;
-       //
-       //         transform.position += (Vector3)(normal * (penetration * 0.5f));
-       //         other.transform.position -= (Vector3)(normal * (penetration * 0.5f));
-       //     }
-       // }
+        Vector2 vNormal = Vector2.Dot(velocity, normal) * normal;
+        Vector2 vTangent = velocity - vNormal;
 
-        transform.position = position;
+        vNormal = -vNormal * restitution;
+        vTangent *= (1.0f - friction);
+
+        velocity = vNormal + vTangent;
     }
 
-    void OnDrawGizmos()
+    public void CheckBallCollision(Ball other)
     {
-        Vector2 position = Application.isPlaying ? (Vector2)transform.position : (Vector2)transform.position;
+        Vector2 otherToThisVector = position - other.position;
+        float ballsDistance = otherToThisVector.magnitude;
 
-        Vector2 AB = wall.pointB - wall.pointA;
-        Vector2 AP = position - wall.pointA;
+        float minDist = radius + other.radius;
 
-        float t = Vector2.Dot(AP, AB) / Vector2.Dot(AB, AB);
-        t = Mathf.Clamp01(t);
+        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist)
+            return;
 
-        Vector2 closest = wall.pointA + AB * t;
+        Vector2 normal = otherToThisVector / ballsDistance;
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(wall.pointA, wall.pointB);
+        float penetration = minDist - ballsDistance;
 
-        Gizmos.color = Color.white;
-        Gizmos.DrawSphere(position, radius);
+        Vector2 correction = normal * (penetration * 0.5f);
+        position += correction;
+        other.position -= correction;
 
-        Gizmos.color = Color.green;
-        Gizmos.DrawSphere(closest, 0.1f);
+        Vector2 relativeVelocity = velocity - other.velocity;
+        float velAlongNormal = Vector2.Dot(relativeVelocity, normal);
 
-        Gizmos.color = Color.blue;
-        Gizmos.DrawLine(wall.pointA, position);
+        if (velAlongNormal > 0)
+            return;
 
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawLine(wall.pointA, closest);
+        float minRestitution = Mathf.Min(restitution, other.restitution);
 
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawLine(closest, position);
+        float invMassA = InvMass;
+        float invMassB = other.InvMass;
 
-        Vector2 normal = (position - closest).normalized;
-        Gizmos.color = Color.magenta;
-        Gizmos.DrawLine(closest, closest + normal);
+        float impulseCorrecction = -(1 + minRestitution) * velAlongNormal;
+
+        float denom = invMassA + invMassB;
+        if (denom < 0f || Mathf.Approximately(denom, 0.0f))
+            return;
+
+        impulseCorrecction /= denom;
+
+        Vector2 impulse = impulseCorrecction * normal;
+
+        velocity += impulse * invMassA;
+        other.velocity -= impulse * invMassB;
+
+        relativeVelocity = velocity - other.velocity;
+
+        Vector2 tangent = (relativeVelocity - Vector2.Dot(relativeVelocity, normal) * normal);
+        if (tangent.sqrMagnitude > Mathf.Epsilon)
+            tangent.Normalize();
+
+        float relativeVelTangent = Vector2.Dot(relativeVelocity, tangent);
+
+        float tangencialImpulse = -relativeVelTangent;
+        tangencialImpulse /= denom;
+
+        float coeficientFriction = (friction + other.friction) * 0.5f;
+
+        tangencialImpulse = Mathf.Clamp(tangencialImpulse, -impulseCorrecction * coeficientFriction, impulseCorrecction * coeficientFriction);
+
+        Vector2 frictionImpulse = tangencialImpulse * tangent;
+
+        velocity += frictionImpulse * invMassA;
+        other.velocity -= frictionImpulse * invMassB;
     }
 }
