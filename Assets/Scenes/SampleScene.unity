@@ -436,7 +436,7 @@ MonoBehaviour:
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
-    mass: 100
+    mass: 1
     friction: 0
   - position: {x: -5.99, y: 7.38}
     radius: 0.3
