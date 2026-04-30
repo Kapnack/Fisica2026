@@ -41,10 +41,7 @@ public class Ball
 
         float minDist = wall.thickness + radius;
 
-        if (dist > minDist)
-            return;
-
-        if (dist <= Mathf.Epsilon)
+        if (dist > minDist || dist < Mathf.Epsilon)
             return;
 
         Vector2 normal = delta / dist;
