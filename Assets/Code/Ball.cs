@@ -57,7 +57,7 @@ public class Ball
 
         if (wallVectorSqrMag < Mathf.Epsilon) return wall.pointA;
 
-        float ballWallInterpolation = Vector2.Dot(position - wall.pointA, wallVector) / wallVectorSqrMag;
+        float ballWallInterpolation = DotProduct(position - wall.pointA, wallVector) / wallVectorSqrMag;
         ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
 
         return wall.pointA + wallVector * ballWallInterpolation;
@@ -70,7 +70,7 @@ public class Ball
 
     private void ApplyWallResponse(Vector2 normal)
     {
-        Vector2 vNormal = Vector2.Dot(velocity, normal) * normal;
+        Vector2 vNormal = DotProduct(velocity, normal) * normal;
         Vector2 vTangent = velocity - vNormal;
 
         vNormal = -vNormal * restitution;
@@ -104,7 +104,7 @@ public class Ball
     private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
     {
         Vector2 relativeVelocity = velocity - other.velocity;
-        float velAlongNormal = Vector2.Dot(relativeVelocity, normal);
+        float velAlongNormal = DotProduct(relativeVelocity, normal);
 
         if (velAlongNormal > 0)
             return;
@@ -128,12 +128,12 @@ public class Ball
 
     private void ApplyBallFriction(Ball other, Vector2 relativeVelocity, Vector2 normal, float impulseCorrecction, float denom)
     {
-        Vector2 tangent = relativeVelocity - (Vector2.Dot(relativeVelocity, normal) * normal);
+        Vector2 tangent = relativeVelocity - (DotProduct(relativeVelocity, normal) * normal);
 
         if (tangent.sqrMagnitude > Mathf.Epsilon)
             tangent.Normalize();
 
-        float relativeVelTangent = Vector2.Dot(relativeVelocity, tangent);
+        float relativeVelTangent = DotProduct(relativeVelocity, tangent);
         float tangencialImpulse = -relativeVelTangent / denom;
 
         float coeficientFriction = (friction + other.friction) * 0.5f;
@@ -143,4 +143,12 @@ public class Ball
         velocity += frictionImpulse * InvMass;
         other.velocity -= frictionImpulse * other.InvMass;
     }
+
+    private float DotProduct(Vector2 a, Vector2 b)
+    {
+        return a.x * b.x + a.y * b.y;
+    }
+
+    public static float Cross(Vec2 a, Vec2 b)
+       => a.x * b.y - a.y * b.x;
 }
