@@ -32,7 +32,6 @@ public class Ball
             velocity += -velocity.normalized * (floorFriction * deltaTime);
         else
             velocity = Vector2.zero;
-
     }
 
     public void CheckWallCollision(Wall wall)
