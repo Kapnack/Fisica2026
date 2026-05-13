@@ -412,18 +412,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 300601b56470bb248b9f252485a756e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  tableRotation: -4
+  floorFriction: 0
   walls:
-  - pointA: {x: -10, y: 0}
-    pointB: {x: 10, y: 0}
+  - pointA: {x: -10, y: -0.00000004812734}
+    pointB: {x: 10, y: 0.00000004812734}
     thickness: 0
-  - pointA: {x: 10, y: 0}
-    pointB: {x: 10, y: 10}
+  - pointA: {x: -10, y: -0.00000004812734}
+    pointB: {x: -10, y: 10.000001}
     thickness: 0
-  - pointA: {x: 10, y: 10}
-    pointB: {x: -10, y: 10}
+  - pointA: {x: 10.000001, y: 10}
+    pointB: {x: 10, y: 0.00000004812734}
     thickness: 0
-  - pointA: {x: -10, y: 0}
-    pointB: {x: -10, y: 10}
+  - pointA: {x: -10, y: 10.000001}
+    pointB: {x: 10.000001, y: 10}
     thickness: 0
   balls:
   - position: {x: 2.85, y: 5.29}
@@ -432,30 +434,40 @@ MonoBehaviour:
     restitution: 1
     mass: 1
     friction: 0
+    aceleration: 0.3
+    acelerationDir: {x: 0, y: 0}
   - position: {x: -5.05, y: 5.29}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
+    aceleration: 0.3
+    acelerationDir: {x: 0, y: 0}
   - position: {x: -5.99, y: 7.38}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
+    aceleration: 0.3
+    acelerationDir: {x: 0, y: 0}
   - position: {x: -0.99, y: 6.57}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
+    aceleration: 0.3
+    acelerationDir: {x: 0, y: 0}
   - position: {x: 7.37, y: 2.97}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
+    aceleration: 0.3
+    acelerationDir: {x: 0, y: 0}
   holes:
   - position: {x: 9, y: 1}
     radius: 0.3

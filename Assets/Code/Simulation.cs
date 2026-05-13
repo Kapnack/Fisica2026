@@ -13,11 +13,11 @@ public struct Hole
 
 public class Simulation : MonoBehaviour
 {
+    [SerializeField] private float tableRotation;
+    [SerializeField] private float floorFriction;
     [SerializeField] private Wall[] walls;
     [SerializeField] private List<Ball> balls = new List<Ball>();
     [SerializeField] private Hole[] holes;
-
-    private const float Gravity = 9.81f;
 
     List<Ball> toRemove = new List<Ball>();
 
@@ -25,7 +25,7 @@ public class Simulation : MonoBehaviour
     {
         foreach (Ball ball in balls)
         {
-            ball.Integrate(Time.deltaTime);
+            ball.Integrate(Time.deltaTime, floorFriction);
 
             foreach (Wall wall in walls)
                 ball.CheckWallCollision(wall);
@@ -49,6 +49,13 @@ public class Simulation : MonoBehaviour
             balls.Remove(ballToRemove);
     }
 
+    [ContextMenu("RotateWalls")]
+    private void RotateWalls()
+    {
+        for (int i = 0; i < walls.Length; ++i)
+            walls[i] = RotateWall(walls[i], tableRotation);
+    }
+
     private bool IsInsideHole(Ball ball)
     {
         foreach (Hole hole in holes)
@@ -60,18 +67,41 @@ public class Simulation : MonoBehaviour
         return false;
     }
 
+    public Wall RotateWall(Wall wall, float angleInDegrees)
+    {
+        float radians = angleInDegrees * (MathF.PI / 180f);
+        float cos = MathF.Cos(radians);
+        float sin = MathF.Sin(radians);
+
+        return new Wall
+        {
+            pointA = RotatePoint(wall.pointA, cos, sin),
+            pointB = RotatePoint(wall.pointB, cos, sin),
+            thickness = wall.thickness
+        };
+    }
+
+    private Vector2 RotatePoint(Vector2 p, float cos, float sin)
+    {
+        return new Vector2(
+            p.x * cos - p.y * sin,
+            p.x * sin + p.y * cos
+        );
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.brown;
         foreach (Wall wall in walls)
         {
-            //Gizmos.DrawCube(((wall.pointB + wall.pointA) * 0.5f), new Vector3(wall.thickness, Vector3.Distance(wall.pointB, wall.pointA)));
             Gizmos.DrawLine(wall.pointA, wall.pointB);
         }
 
         Gizmos.color = Color.white;
         foreach (Ball ball in balls)
+        {
             Gizmos.DrawSphere(ball.Position, ball.Radius);
+        }
 
         Gizmos.color = Color.black;
         foreach (Hole hole in holes)

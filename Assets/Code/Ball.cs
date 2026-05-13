@@ -11,14 +11,27 @@ public class Ball
     [SerializeField] private float mass = 1f;
     [SerializeField] private float friction = 0.3f;
 
+    [SerializeField] private float aceleration = 0.3f;
+    [SerializeField] private Vector2 acelerationDir;
+
     public Vector2 Position => position;
     public float Radius => radius;
 
     float InvMass => (mass <= 0f) ? 0f : 1f / mass;
 
-    public void Integrate(float deltaTime)
+    [ContextMenu("Impulse")]
+    private void Impulse()
+    {
+        velocity += aceleration * acelerationDir.normalized;
+    }
+
+    public void Integrate(float deltaTime, float floorFriction)
     {
         position += velocity * deltaTime;
+        velocity += -velocity.normalized * (floorFriction * deltaTime);
+
+        if (velocity.sqrMagnitude < Mathf.Epsilon)
+            velocity = Vector2.zero;
     }
 
     public void CheckWallCollision(Wall wall)
@@ -26,7 +39,7 @@ public class Ball
         Vector2 wallVector = wall.pointB - wall.pointA;
         float wallVectorSqrMag = Vector2.SqrMagnitude(wallVector);
 
-        if (wallVectorSqrMag <= Mathf.Epsilon)
+        if (wallVectorSqrMag < Mathf.Epsilon)
             return;
 
         Vector2 ballPointAVector = position - wall.pointA;
@@ -99,8 +112,6 @@ public class Ball
         velocity += impulse * invMassA;
         other.velocity -= impulse * invMassB;
 
-        relativeVelocity = velocity - other.velocity;
-
         Vector2 tangent = (relativeVelocity - Vector2.Dot(relativeVelocity, normal) * normal);
         if (tangent.sqrMagnitude > Mathf.Epsilon)
             tangent.Normalize();
@@ -118,5 +129,15 @@ public class Ball
 
         velocity += frictionImpulse * invMassA;
         other.velocity -= frictionImpulse * invMassB;
+    }
+
+    private bool CheckWallHit(Vector2 pos, float rad, Wall wall)
+    {
+        Vector2 wallVec = wall.pointB - wall.pointA;
+        float wallSqrMag = wallVec.sqrMagnitude;
+        float interp = Mathf.Clamp01(Vector2.Dot(pos - wall.pointA, wallVec) / wallSqrMag);
+        Vector2 closest = wall.pointA + wallVec * interp;
+
+        return Vector2.Distance(pos, closest) <= (wall.thickness + rad);
     }
 }
