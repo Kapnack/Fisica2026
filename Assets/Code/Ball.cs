@@ -16,8 +16,7 @@ public class Ball
 
     public Vector2 Position => position;
     public float Radius => radius;
-
-    float InvMass => (mass <= 0f) ? 0f : 1f / mass;
+    private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
 
     [ContextMenu("Impulse")]
     private void Impulse()
@@ -28,30 +27,19 @@ public class Ball
     public void Integrate(float deltaTime, float floorFriction)
     {
         position += velocity * deltaTime;
-        velocity += -velocity.normalized * (floorFriction * deltaTime);
 
-        if (velocity.sqrMagnitude < Mathf.Epsilon)
+        if (velocity.sqrMagnitude > Mathf.Epsilon)
+            velocity += -velocity.normalized * (floorFriction * deltaTime);
+        else
             velocity = Vector2.zero;
+
     }
 
     public void CheckWallCollision(Wall wall)
     {
-        Vector2 wallVector = wall.pointB - wall.pointA;
-        float wallVectorSqrMag = Vector2.SqrMagnitude(wallVector);
-
-        if (wallVectorSqrMag < Mathf.Epsilon)
-            return;
-
-        Vector2 ballPointAVector = position - wall.pointA;
-
-        float ballWallInterpolation = Vector2.Dot(ballPointAVector, wallVector) / wallVectorSqrMag;
-        ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
-
-        Vector2 closestPointToWall = wall.pointA + wallVector * ballWallInterpolation;
-
+        Vector2 closestPointToWall = GetClosestPointOnWall(wall);
         Vector2 delta = position - closestPointToWall;
         float dist = delta.magnitude;
-
         float minDist = wall.thickness + radius;
 
         if (dist > minDist || dist < Mathf.Epsilon)
@@ -59,8 +47,30 @@ public class Ball
 
         Vector2 normal = delta / dist;
 
-        position = closestPointToWall + normal * minDist;
+        ResolveWallOverlap(closestPointToWall, normal, minDist);
+        ApplyWallResponse(normal);
+    }
 
+    private Vector2 GetClosestPointOnWall(Wall wall)
+    {
+        Vector2 wallVector = wall.pointB - wall.pointA;
+        float wallVectorSqrMag = wallVector.sqrMagnitude;
+
+        if (wallVectorSqrMag < Mathf.Epsilon) return wall.pointA;
+
+        float ballWallInterpolation = Vector2.Dot(position - wall.pointA, wallVector) / wallVectorSqrMag;
+        ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
+
+        return wall.pointA + wallVector * ballWallInterpolation;
+    }
+
+    private void ResolveWallOverlap(Vector2 closestPointToWall, Vector2 normal, float minDist)
+    {
+        position = closestPointToWall + normal * minDist;
+    }
+
+    private void ApplyWallResponse(Vector2 normal)
+    {
         Vector2 vNormal = Vector2.Dot(velocity, normal) * normal;
         Vector2 vTangent = velocity - vNormal;
 
@@ -74,7 +84,6 @@ public class Ball
     {
         Vector2 otherToThisVector = position - other.position;
         float ballsDistance = otherToThisVector.magnitude;
-
         float minDist = radius + other.radius;
 
         if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist)
@@ -82,62 +91,57 @@ public class Ball
 
         Vector2 normal = otherToThisVector / ballsDistance;
 
-        float penetration = minDist - ballsDistance;
+        ResolveBallOverlap(other, normal, minDist - ballsDistance);
+        ApplyBallPhysicsResponse(other, normal);
+    }
 
+    private void ResolveBallOverlap(Ball other, Vector2 normal, float penetration)
+    {
         Vector2 correction = normal * (penetration * 0.5f);
         position += correction;
         other.position -= correction;
+    }
 
+    private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
+    {
         Vector2 relativeVelocity = velocity - other.velocity;
         float velAlongNormal = Vector2.Dot(relativeVelocity, normal);
 
         if (velAlongNormal > 0)
             return;
 
-        float minRestitution = Mathf.Min(restitution, other.restitution);
-
         float invMassA = InvMass;
         float invMassB = other.InvMass;
-
-        float impulseCorrecction = -(1 + minRestitution) * velAlongNormal;
-
         float denom = invMassA + invMassB;
-        if (denom < 0f || Mathf.Approximately(denom, 0.0f))
+
+        if (denom <= 0 || Mathf.Approximately(denom, 0f))
             return;
 
-        impulseCorrecction /= denom;
+        float minRestitution = Mathf.Min(restitution, other.restitution);
+        float impulseCorrecction = (-(1 + minRestitution) * velAlongNormal) / denom;
 
         Vector2 impulse = impulseCorrecction * normal;
-
         velocity += impulse * invMassA;
         other.velocity -= impulse * invMassB;
 
-        Vector2 tangent = (relativeVelocity - Vector2.Dot(relativeVelocity, normal) * normal);
+        ApplyBallFriction(other, relativeVelocity, normal, impulseCorrecction, denom);
+    }
+
+    private void ApplyBallFriction(Ball other, Vector2 relativeVelocity, Vector2 normal, float impulseCorrecction, float denom)
+    {
+        Vector2 tangent = relativeVelocity - (Vector2.Dot(relativeVelocity, normal) * normal);
+
         if (tangent.sqrMagnitude > Mathf.Epsilon)
             tangent.Normalize();
 
         float relativeVelTangent = Vector2.Dot(relativeVelocity, tangent);
-
-        float tangencialImpulse = -relativeVelTangent;
-        tangencialImpulse /= denom;
+        float tangencialImpulse = -relativeVelTangent / denom;
 
         float coeficientFriction = (friction + other.friction) * 0.5f;
-
         tangencialImpulse = Mathf.Clamp(tangencialImpulse, -impulseCorrecction * coeficientFriction, impulseCorrecction * coeficientFriction);
 
         Vector2 frictionImpulse = tangencialImpulse * tangent;
-
-        velocity += frictionImpulse * invMassA;
-        other.velocity -= frictionImpulse * invMassB;
-    }
-
-    private bool CheckWallHit(Vector2 pos, float rad, Wall wall)
-    {
-        Vector2 wallVec = wall.pointB - wall.pointA;
-        float wallSqrMag = wallVec.sqrMagnitude;
-        float interp = Mathf.Clamp01(Vector2.Dot(pos - wall.pointA, wallVec) / wallSqrMag);
-        Vector2 closest = wall.pointA + wallVec * interp;
-
-        return Vector2.Distance(pos, closest) <= (wall.thickness + rad);
+        velocity += frictionImpulse * InvMass;
+        other.velocity -= frictionImpulse * other.InvMass;
     }
 }
