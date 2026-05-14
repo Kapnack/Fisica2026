@@ -11,9 +11,6 @@ public class Ball
     [SerializeField] private float mass = 1f;
     [SerializeField] private float friction = 0.3f;
 
-    [SerializeField] private float aceleration = 0.3f;
-    [SerializeField] private Vector2 acelerationDir;
-
     public Vector2 Position => position;
     public float Radius => radius;
     private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
