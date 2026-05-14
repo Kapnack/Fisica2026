@@ -65,9 +65,11 @@ public class Simulation : MonoBehaviour
             balls.Remove(ballToRemove);
     }
 
-    [ContextMenu("Impulse Selected Ball")]
     private void ImpulseBall()
     {
+        if (balls.Count == 0)
+            return;
+
         if (ballIndex < 0 || ballIndex > balls.Count)
             return;
 
@@ -158,6 +160,10 @@ public class Simulation : MonoBehaviour
     private void OnValidate()
     {
         acelerationDir = RotateVector(Vector2.one, rotation);
+
+        aceleration = MathF.Max(aceleration, 0.0f);
+
+        floorFriction = MathF.Max(floorFriction, 0.0f);
 
         if (impulse)
         {

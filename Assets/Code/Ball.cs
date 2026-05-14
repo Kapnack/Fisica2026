@@ -112,36 +112,13 @@ public class Ball
         }
     }
 
-    public bool SegmentToSegment(Vector2 point1A, Vector2 point1B, Vector2 point2A, Vector2 point2B, out Vector2 intersectPoint)
-    {
-        intersectPoint = Vector2.zero;
-        Vector2 seg1Dir = point1B - point1A;
-        Vector2 seg2Dir = point2B - point2A;
-        Vector2 vectorAtoA = point1A - point2B;
-
-        float commonDeterminant = Physics.Math.Cross(seg1Dir, seg2Dir);
-
-        if (Mathf.Abs(commonDeterminant) < float.Epsilon) return false;
-
-        float detX = Physics.Math.Cross(seg2Dir, vectorAtoA) / commonDeterminant;
-        float detY = Physics.Math.Cross(seg1Dir, vectorAtoA) / commonDeterminant;
-
-        bool isThereIntersection = (detX >= 0 && detX <= 1 && detY >= 0 && detY <= 1);
-
-        if (isThereIntersection)
-        {
-            intersectPoint = point1A + (seg1Dir * detX);
-        }
-
-        return isThereIntersection;
-    }
-
     private Vector2 GetClosestPointOnWall(Wall wall)
     {
         Vector2 wallVector = wall.pointB - wall.pointA;
         float wallVectorSqrMag = wallVector.sqrMagnitude;
 
-        if (wallVectorSqrMag < Mathf.Epsilon) return wall.pointA;
+        if (wallVectorSqrMag < Mathf.Epsilon) 
+            return wall.pointA;
 
         float ballWallInterpolation = Physics.Math.Dot(position - wall.pointA, wallVector) / wallVectorSqrMag;
         ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
@@ -155,7 +132,8 @@ public class Ball
         float ballsDistance = otherToThisVector.magnitude;
         float minDist = radius + other.radius;
 
-        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist) return;
+        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist) 
+            return;
 
         Vector2 normal = otherToThisVector / ballsDistance;
 

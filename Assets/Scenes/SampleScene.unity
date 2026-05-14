@@ -412,58 +412,58 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 300601b56470bb248b9f252485a756e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  tableRotation: 4
+  tableRotation: 0
   floorFriction: 0
   ballIndex: 0
   aceleration: 0
   rotation: 0
   impulse: 0
   walls:
-  - pointA: {x: -12.16, y: -0.00000007785707}
-    pointB: {x: 10.000001, y: 0.00000007785707}
+  - pointA: {x: -12.160001, y: -0.00000003395499}
+    pointB: {x: 10.000001, y: 0.00000011631755}
     thickness: 0
-  - pointA: {x: -10.000001, y: -0.00000007785707}
+  - pointA: {x: -10.000001, y: -0.00000011631755}
     pointB: {x: -10.000001, y: 10.000001}
     thickness: 0
   - pointA: {x: 10.000001, y: 10.000001}
-    pointB: {x: 10.000001, y: 0.00000007785707}
+    pointB: {x: 10.000001, y: 0.00000011631755}
     thickness: 0
   - pointA: {x: -10.000001, y: 10.000001}
     pointB: {x: 10.000001, y: 10.000001}
     thickness: 0
   balls:
   - previousPosition: {x: 0, y: 0}
-    position: {x: 2.85, y: 5.29}
-    radius: 0.3
+    position: {x: 3.78, y: 6.33}
     velocity: {x: 0, y: 0}
+    radius: 0.3
     restitution: 1
     mass: 1
     friction: 0
   - previousPosition: {x: 0, y: 0}
     position: {x: -5.05, y: 5.29}
-    radius: 0.3
     velocity: {x: 0, y: 0}
+    radius: 0.3
     restitution: 1
     mass: 1
     friction: 0
   - previousPosition: {x: 0, y: 0}
     position: {x: -5.99, y: 7.38}
-    radius: 0.3
     velocity: {x: 0, y: 0}
+    radius: 0.3
     restitution: 1
     mass: 1
     friction: 0
   - previousPosition: {x: 0, y: 0}
     position: {x: -0.99, y: 6.57}
-    radius: 0.3
     velocity: {x: 0, y: 0}
+    radius: 0.3
     restitution: 1
     mass: 1
     friction: 0
   - previousPosition: {x: 0, y: 0}
     position: {x: 7.37, y: 2.97}
-    radius: 0.3
     velocity: {x: 0, y: 0}
+    radius: 0.3
     restitution: 1
     mass: 1
     friction: 0
@@ -489,7 +489,7 @@ Transform:
   m_GameObject: {fileID: 445469018}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 32.7, y: 18.6, z: -106.26525}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
