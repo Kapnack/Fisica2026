@@ -15,8 +15,6 @@ public class Ball
     public float Radius => radius;
     private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
 
-    [ContextMenu("Impulse")]
-    private void Impulse()
     {
         velocity += aceleration * acelerationDir.normalized;
     }
