@@ -417,8 +417,9 @@ MonoBehaviour:
   ballIndex: 0
   aceleration: 0
   rotation: 0
+  impulse: 0
   walls:
-  - pointA: {x: -10, y: -0.00000007785707}
+  - pointA: {x: -12.16, y: -0.00000007785707}
     pointB: {x: 10.000001, y: 0.00000007785707}
     thickness: 0
   - pointA: {x: -10.000001, y: -0.00000007785707}
@@ -431,31 +432,36 @@ MonoBehaviour:
     pointB: {x: 10.000001, y: 10.000001}
     thickness: 0
   balls:
-  - position: {x: 2.85, y: 5.29}
+  - previousPosition: {x: 0, y: 0}
+    position: {x: 2.85, y: 5.29}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
-  - position: {x: -5.05, y: 5.29}
+  - previousPosition: {x: 0, y: 0}
+    position: {x: -5.05, y: 5.29}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
-  - position: {x: -5.99, y: 7.38}
+  - previousPosition: {x: 0, y: 0}
+    position: {x: -5.99, y: 7.38}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
-  - position: {x: -0.99, y: 6.57}
+  - previousPosition: {x: 0, y: 0}
+    position: {x: -0.99, y: 6.57}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1
     mass: 1
     friction: 0
-  - position: {x: 7.37, y: 2.97}
+  - previousPosition: {x: 0, y: 0}
+    position: {x: 7.37, y: 2.97}
     radius: 0.3
     velocity: {x: 0, y: 0}
     restitution: 1

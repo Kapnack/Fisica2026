@@ -4,6 +4,7 @@ using UnityEngine;
 [Serializable]
 public class Ball
 {
+    [SerializeField] private Vector2 previousPosition;
     [SerializeField] private Vector2 position;
     [SerializeField] private float radius;
     [SerializeField] private Vector2 velocity;
@@ -11,7 +12,16 @@ public class Ball
     [SerializeField] private float mass = 1f;
     [SerializeField] private float friction = 0.3f;
 
-    public Vector2 Position => position;
+    public Vector2 Position
+    {
+        get => position;
+        private set
+        {
+            previousPosition = Position;
+            position = value;
+        }
+    }
+
     public float Radius => radius;
     private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
 
@@ -40,7 +50,7 @@ public class Ball
 
     public void Integrate(float deltaTime, float floorFriction, float gravity)
     {
-        position += velocity * deltaTime;
+        Position += velocity * deltaTime;
 
         if (velocity.sqrMagnitude > Mathf.Epsilon * Mathf.Epsilon)
             velocity += -velocity.normalized * (floorFriction * gravity * deltaTime);
@@ -50,19 +60,60 @@ public class Ball
 
     public void CheckWallCollision(Wall wall)
     {
+        if (SegmentToSegment(previousPosition, Position, wall.pointA, wall.pointB, out Vector2 intersectPoint))
+        {
+            Vector2 wallDir = (wall.pointB - wall.pointA).normalized;
+            Vector2 normal = new Vector2(-wallDir.y, wallDir.x);
+
+            if (Vector2.Dot(normal, previousPosition - intersectPoint) < 0)
+                normal = -normal;
+
+            float combinedRadius = wall.thickness + radius;
+
+            Position = intersectPoint + (normal * combinedRadius);
+
+            velocity = Reflect(velocity, normal, restitution);
+
+            return;
+        }
+
         Vector2 closestPointToWall = GetClosestPointOnWall(wall);
-        Vector2 delta = position - closestPointToWall;
+        Vector2 delta = Position - closestPointToWall;
         float dist = delta.magnitude;
         float minDist = wall.thickness + radius;
 
-        if (dist > minDist || dist < Mathf.Epsilon)
-            return;
+        if (dist < minDist && dist > Mathf.Epsilon)
+        {
+            Vector2 normal = delta / dist;
+            ResolveWallOverlap(closestPointToWall, normal, minDist);
+            velocity = Reflect(velocity, normal, restitution);
+        }
+    }
 
-        Vector2 normal = delta / dist;
+    public bool SegmentToSegment(Vector2 point1A, Vector2 point1B, Vector2 point2A, Vector2 point2B, out Vector2 intersectPoint)
+    {
+        intersectPoint = Vector2.zero;
+        Vector2 seg1Dir = point1B - point1A;
+        Vector2 seg2Dir = point2B - point2A;
+        Vector2 vectorAtoA = point1A - point2B;
 
-        ResolveWallOverlap(closestPointToWall, normal, minDist);
+        float commonDeterminant = Cross(seg1Dir, seg2Dir);
 
-        velocity = Reflect(velocity, normal, restitution);
+        if (Mathf.Abs(commonDeterminant) < float.Epsilon)
+            return false;
+
+        float detX = Cross(seg2Dir, vectorAtoA) / commonDeterminant;
+        float detY = Cross(seg1Dir, vectorAtoA) / commonDeterminant;
+
+        bool isThereIntersection = (detX >= 0 && detX <= 1 &&
+                                    detY >= 0 && detY <= 1);
+
+        intersectPoint = isThereIntersection ? new Vector2(
+            point1A.x + (detX * (point1B.x - point1A.x)),
+            point1A.y + (detX * (point1B.y - point1A.y))
+            ) : Vector2.zero;
+
+        return isThereIntersection;
     }
 
     private Vector2 GetClosestPointOnWall(Wall wall)
@@ -70,10 +121,10 @@ public class Ball
         Vector2 wallVector = wall.pointB - wall.pointA;
         float wallVectorSqrMag = wallVector.sqrMagnitude;
 
-        if (wallVectorSqrMag < Mathf.Epsilon) 
+        if (wallVectorSqrMag < Mathf.Epsilon)
             return wall.pointA;
 
-        float ballWallInterpolation = Dot(position - wall.pointA, wallVector) / wallVectorSqrMag;
+        float ballWallInterpolation = Dot(Position - wall.pointA, wallVector) / wallVectorSqrMag;
         ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
 
         return wall.pointA + wallVector * ballWallInterpolation;
@@ -81,12 +132,12 @@ public class Ball
 
     private void ResolveWallOverlap(Vector2 closestPointToWall, Vector2 normal, float minDist)
     {
-        position = closestPointToWall + normal * minDist;
+        Position = closestPointToWall + normal * minDist;
     }
 
     public void CheckBallCollision(Ball other)
     {
-        Vector2 otherToThisVector = position - other.position;
+        Vector2 otherToThisVector = Position - other.Position;
         float ballsDistance = otherToThisVector.magnitude;
         float minDist = radius + other.radius;
 
@@ -102,8 +153,8 @@ public class Ball
     private void ResolveBallOverlap(Ball other, Vector2 normal, float penetration)
     {
         Vector2 correction = normal * (penetration * 0.5f);
-        position += correction;
-        other.position -= correction;
+        Position += correction;
+        other.Position -= correction;
     }
 
     private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
