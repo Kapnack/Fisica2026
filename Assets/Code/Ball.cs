@@ -4,10 +4,13 @@ using UnityEngine;
 [Serializable]
 public class Ball
 {
+    [Header("State")]
     [SerializeField] private Vector2 previousPosition;
     [SerializeField] private Vector2 position;
-    [SerializeField] private float radius;
     [SerializeField] private Vector2 velocity;
+
+    [Header("Properties")]
+    [SerializeField] private float radius;
     [SerializeField] private float restitution = 0.8f;
     [SerializeField] private float mass = 1f;
     [SerializeField] private float friction = 0.3f;
@@ -17,7 +20,7 @@ public class Ball
         get => position;
         private set
         {
-            previousPosition = Position;
+            previousPosition = position;
             position = value;
         }
     }
@@ -25,13 +28,9 @@ public class Ball
     public float Radius => radius;
     private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
 
-    private float Dot(Vector2 a, Vector2 b) => a.x * b.x + a.y * b.y;
-
-    private float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
-
     private Vector2 Project(Vector2 vector, Vector2 ontoNormal)
     {
-        float dot = Dot(vector, ontoNormal);
+        float dot = Physics.Math.Dot(vector, ontoNormal);
         return ontoNormal * dot;
     }
 
@@ -40,6 +39,7 @@ public class Ball
         Vector2 vNormal = Project(vector, normal);
         Vector2 vTangent = vector - vNormal;
 
+        // Invertimos la normal escalada por rebote y reducimos la tangente por fricción
         return (-vNormal * bounce) + (vTangent * (1.0f - friction));
     }
 
@@ -62,27 +62,32 @@ public class Ball
     {
         Vector2 wallVec = wall.pointB - wall.pointA;
         float wallLen = wallVec.magnitude;
-        if (wallLen < Mathf.Epsilon) return;
+
+        if (wallLen < Mathf.Epsilon) 
+            return;
 
         Vector2 wallDir = wallVec / wallLen;
         Vector2 wallNormal = new Vector2(-wallDir.y, wallDir.x);
         float minDist = wall.thickness + radius;
 
-        float distPrev = Vector2.Dot(previousPosition - wall.pointA, wallNormal);
-        float distCurr = Vector2.Dot(position - wall.pointA, wallNormal);
+        //Detección de Túnel (CCD) por Planos
+        float distPrev = Physics.Math.Dot(previousPosition - wall.pointA, wallNormal);
+        float distCurr = Physics.Math.Dot(position - wall.pointA, wallNormal);
 
+        // Si los signos cambian, la bola cruzó el muro en este frame
         if (Mathf.Sign(distPrev) != Mathf.Sign(distCurr) || Mathf.Abs(distCurr) < minDist)
         {
             float collisionTime = 0;
             if (Mathf.Abs(distPrev - distCurr) > Mathf.Epsilon)
             {
+                // Interpolación lineal para hallar el punto exacto de contacto (Root Finding)
                 collisionTime = (distPrev - (Mathf.Sign(distPrev) * minDist)) / (distPrev - distCurr);
             }
 
             collisionTime = Mathf.Clamp01(collisionTime);
             Vector2 intersectPoint = Vector2.Lerp(previousPosition, position, collisionTime);
 
-            float projection = Vector2.Dot(intersectPoint - wall.pointA, wallDir);
+            float projection = Physics.Math.Dot(intersectPoint - wall.pointA, wallDir);
 
             if (projection >= 0 && projection <= wallLen)
             {
@@ -93,6 +98,7 @@ public class Ball
             }
         }
 
+        // Colisión Estática (Círculo vs Punto más cercano)
         Vector2 closestPointToWall = GetClosestPointOnWall(wall);
         Vector2 delta = position - closestPointToWall;
         float distSqr = delta.sqrMagnitude;
@@ -113,21 +119,19 @@ public class Ball
         Vector2 seg2Dir = point2B - point2A;
         Vector2 vectorAtoA = point1A - point2B;
 
-        float commonDeterminant = Cross(seg1Dir, seg2Dir);
+        float commonDeterminant = Physics.Math.Cross(seg1Dir, seg2Dir);
 
-        if (Mathf.Abs(commonDeterminant) < float.Epsilon)
-            return false;
+        if (Mathf.Abs(commonDeterminant) < float.Epsilon) return false;
 
-        float detX = Cross(seg2Dir, vectorAtoA) / commonDeterminant;
-        float detY = Cross(seg1Dir, vectorAtoA) / commonDeterminant;
+        float detX = Physics.Math.Cross(seg2Dir, vectorAtoA) / commonDeterminant;
+        float detY = Physics.Math.Cross(seg1Dir, vectorAtoA) / commonDeterminant;
 
-        bool isThereIntersection = (detX >= 0 && detX <= 1 &&
-                                    detY >= 0 && detY <= 1);
+        bool isThereIntersection = (detX >= 0 && detX <= 1 && detY >= 0 && detY <= 1);
 
-        intersectPoint = isThereIntersection ? new Vector2(
-            point1A.x + (detX * (point1B.x - point1A.x)),
-            point1A.y + (detX * (point1B.y - point1A.y))
-            ) : Vector2.zero;
+        if (isThereIntersection)
+        {
+            intersectPoint = point1A + (seg1Dir * detX);
+        }
 
         return isThereIntersection;
     }
@@ -137,28 +141,21 @@ public class Ball
         Vector2 wallVector = wall.pointB - wall.pointA;
         float wallVectorSqrMag = wallVector.sqrMagnitude;
 
-        if (wallVectorSqrMag < Mathf.Epsilon)
-            return wall.pointA;
+        if (wallVectorSqrMag < Mathf.Epsilon) return wall.pointA;
 
-        float ballWallInterpolation = Dot(Position - wall.pointA, wallVector) / wallVectorSqrMag;
+        float ballWallInterpolation = Physics.Math.Dot(position - wall.pointA, wallVector) / wallVectorSqrMag;
         ballWallInterpolation = Mathf.Clamp01(ballWallInterpolation);
 
         return wall.pointA + wallVector * ballWallInterpolation;
     }
 
-    private void ResolveWallOverlap(Vector2 closestPointToWall, Vector2 normal, float minDist)
-    {
-        Position = closestPointToWall + normal * minDist;
-    }
-
     public void CheckBallCollision(Ball other)
     {
-        Vector2 otherToThisVector = Position - other.Position;
+        Vector2 otherToThisVector = position - other.position;
         float ballsDistance = otherToThisVector.magnitude;
         float minDist = radius + other.radius;
 
-        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist)
-            return;
+        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist) return;
 
         Vector2 normal = otherToThisVector / ballsDistance;
 
@@ -169,26 +166,27 @@ public class Ball
     private void ResolveBallOverlap(Ball other, Vector2 normal, float penetration)
     {
         Vector2 correction = normal * (penetration * 0.5f);
-        Position += correction;
-        other.Position -= correction;
+        position += correction;
+        other.position -= correction;
     }
 
     private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
     {
         Vector2 relativeVelocity = velocity - other.velocity;
-        float velAlongNormal = Dot(relativeVelocity, normal);
+        float velAlongNormal = Physics.Math.Dot(relativeVelocity, normal);
 
-        if (velAlongNormal > 0)
+        // Si se están alejando, no aplicar impulso
+        if (velAlongNormal > 0) 
             return;
 
         float invMassA = InvMass;
         float invMassB = other.InvMass;
         float denom = invMassA + invMassB;
 
-        if (denom <= 0 || Mathf.Approximately(denom, 0f))
-            return;
+        if (denom <= 0 || Mathf.Approximately(denom, 0f)) return;
 
         float minRestitution = Mathf.Min(restitution, other.restitution);
+        // Fórmula de Impulso Normal (j)
         float impulseCorrecction = (-(1 + minRestitution) * velAlongNormal) / denom;
 
         Vector2 impulse = impulseCorrecction * normal;
@@ -198,6 +196,7 @@ public class Ball
         ApplyBallFriction(other, relativeVelocity, normal, impulseCorrecction, denom);
     }
 
+    // Aplica fricción tangencial durante el choque (frena el deslizamiento entre bolas)
     private void ApplyBallFriction(Ball other, Vector2 relativeVelocity, Vector2 normal, float impulseCorrecction, float denom)
     {
         Vector2 tangent = relativeVelocity - Project(relativeVelocity, normal);
@@ -205,9 +204,10 @@ public class Ball
         if (tangent.sqrMagnitude > Mathf.Epsilon)
             tangent.Normalize();
 
-        float relativeVelTangent = Dot(relativeVelocity, tangent);
+        float relativeVelTangent = Physics.Math.Dot(relativeVelocity, tangent);
         float tangencialImpulse = -relativeVelTangent / denom;
 
+        // La fricción no puede ser mayor que la fuerza normal (Ley de Coulomb)
         float coeficientFriction = (friction + other.friction) * 0.5f;
         tangencialImpulse = Mathf.Clamp(tangencialImpulse, -impulseCorrecction * coeficientFriction, impulseCorrecction * coeficientFriction);
 
