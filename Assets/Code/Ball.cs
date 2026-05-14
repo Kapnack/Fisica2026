@@ -60,32 +60,48 @@ public class Ball
 
     public void CheckWallCollision(Wall wall)
     {
-        if (SegmentToSegment(previousPosition, Position, wall.pointA, wall.pointB, out Vector2 intersectPoint))
+        Vector2 wallVec = wall.pointB - wall.pointA;
+        float wallLen = wallVec.magnitude;
+        if (wallLen < Mathf.Epsilon) return;
+
+        Vector2 wallDir = wallVec / wallLen;
+        Vector2 wallNormal = new Vector2(-wallDir.y, wallDir.x);
+        float minDist = wall.thickness + radius;
+
+        float distPrev = Vector2.Dot(previousPosition - wall.pointA, wallNormal);
+        float distCurr = Vector2.Dot(position - wall.pointA, wallNormal);
+
+        if (Mathf.Sign(distPrev) != Mathf.Sign(distCurr) || Mathf.Abs(distCurr) < minDist)
         {
-            Vector2 wallDir = (wall.pointB - wall.pointA).normalized;
-            Vector2 normal = new Vector2(-wallDir.y, wallDir.x);
+            float collisionTime = 0;
+            if (Mathf.Abs(distPrev - distCurr) > Mathf.Epsilon)
+            {
+                collisionTime = (distPrev - (Mathf.Sign(distPrev) * minDist)) / (distPrev - distCurr);
+            }
 
-            if (Vector2.Dot(normal, previousPosition - intersectPoint) < 0)
-                normal = -normal;
+            collisionTime = Mathf.Clamp01(collisionTime);
+            Vector2 intersectPoint = Vector2.Lerp(previousPosition, position, collisionTime);
 
-            float combinedRadius = wall.thickness + radius;
+            float projection = Vector2.Dot(intersectPoint - wall.pointA, wallDir);
 
-            Position = intersectPoint + (normal * combinedRadius);
-
-            velocity = Reflect(velocity, normal, restitution);
-
-            return;
+            if (projection >= 0 && projection <= wallLen)
+            {
+                Vector2 normal = wallNormal * Mathf.Sign(distPrev);
+                position = intersectPoint;
+                velocity = Reflect(velocity, normal, restitution);
+                return;
+            }
         }
 
         Vector2 closestPointToWall = GetClosestPointOnWall(wall);
-        Vector2 delta = Position - closestPointToWall;
-        float dist = delta.magnitude;
-        float minDist = wall.thickness + radius;
+        Vector2 delta = position - closestPointToWall;
+        float distSqr = delta.sqrMagnitude;
 
-        if (dist < minDist && dist > Mathf.Epsilon)
+        if (distSqr < minDist * minDist && distSqr > Mathf.Epsilon)
         {
+            float dist = Mathf.Sqrt(distSqr);
             Vector2 normal = delta / dist;
-            ResolveWallOverlap(closestPointToWall, normal, minDist);
+            position = closestPointToWall + normal * minDist;
             velocity = Reflect(velocity, normal, restitution);
         }
     }
