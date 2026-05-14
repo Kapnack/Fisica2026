@@ -1,7 +1,6 @@
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 [Serializable]
@@ -13,19 +12,36 @@ public struct Hole
 
 public class Simulation : MonoBehaviour
 {
+    [Header("Table Properties")]
     [SerializeField] private float tableRotation;
     [SerializeField] private float floorFriction;
+
+    [Header("Ball Modification")]
+    [SerializeField] private int ballIndex;
+    [SerializeField] private float aceleration = 0.3f;
+    [SerializeField] private float rotation = 0.0f;
+    [SerializeField] private bool impulse = false;
+    private Vector2 acelerationDir = Vector2.zero;
+
+    [Header("Scene Objects")]
     [SerializeField] private Wall[] walls;
     [SerializeField] private List<Ball> balls = new List<Ball>();
     [SerializeField] private Hole[] holes;
 
     List<Ball> toRemove = new List<Ball>();
 
+    private const float Gravity = 9.81f;
+
+    private void Awake()
+    {
+        Application.runInBackground = true;
+    }
+
     void Update()
     {
         foreach (Ball ball in balls)
         {
-            ball.Integrate(Time.deltaTime, floorFriction);
+            ball.Integrate(Time.deltaTime, floorFriction, Gravity);
 
             foreach (Wall wall in walls)
                 ball.CheckWallCollision(wall);
@@ -47,6 +63,19 @@ public class Simulation : MonoBehaviour
 
         foreach (Ball ballToRemove in toRemove)
             balls.Remove(ballToRemove);
+    }
+
+    [ContextMenu("Impulse Selected Ball")]
+    private void ImpulseBall()
+    {
+        if (ballIndex < 0 || ballIndex > balls.Count)
+            return;
+
+        balls[ballIndex].Impulse(aceleration, acelerationDir);
+
+        aceleration = 0.0f;
+        acelerationDir = Vector2.one;
+        rotation = 0.0f;
     }
 
     [ContextMenu("RotateWalls")]
@@ -89,6 +118,16 @@ public class Simulation : MonoBehaviour
         );
     }
 
+    Vector2 RotateVector(Vector2 v, float radians)
+    {
+        float sin = Mathf.Sin(radians);
+        float cos = Mathf.Cos(radians);
+        return new Vector2(
+            v.x * cos - v.y * sin,
+            v.x * sin + v.y * cos
+        );
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.brown;
@@ -97,14 +136,33 @@ public class Simulation : MonoBehaviour
             Gizmos.DrawLine(wall.pointA, wall.pointB);
         }
 
-        Gizmos.color = Color.white;
-        foreach (Ball ball in balls)
+        for (int i = 0; i < balls.Count; ++i)
         {
-            Gizmos.DrawSphere(ball.Position, ball.Radius);
+            if (i == ballIndex)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawLine(balls[i].Position, balls[i].Position + (acelerationDir.normalized * aceleration));
+            }
+            else
+                Gizmos.color = Color.white;
+
+            Handles.Label(balls[i].Position + Vector2.up + Vector2.left * 0.5f, "Ball: " + i + ".");
+            Gizmos.DrawSphere(balls[i].Position, balls[i].Radius);
         }
 
         Gizmos.color = Color.black;
         foreach (Hole hole in holes)
             Gizmos.DrawSphere(hole.position, hole.radius);
+    }
+
+    private void OnValidate()
+    {
+        acelerationDir = RotateVector(Vector2.one, rotation);
+
+        if (impulse)
+        {
+            ImpulseBall();
+            impulse = false;
+        }
     }
 }
