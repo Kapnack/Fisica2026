@@ -39,9 +39,11 @@ public class Simulation : MonoBehaviour
 
     void Update()
     {
+        float deltaTime = Time.deltaTime;
+
         foreach (Ball ball in balls)
         {
-            ball.Integrate(Time.deltaTime, floorFriction, Gravity);
+            ball.Integrate(deltaTime, floorFriction, Gravity);
 
             foreach (Wall wall in walls)
                 ball.CheckWallCollision(wall);
@@ -52,7 +54,7 @@ public class Simulation : MonoBehaviour
                 if (other.Equals(ball))
                     continue;
 
-                ball.CheckBallCollision(other);
+                ball.CheckBallCollision(other, deltaTime);
             }
 
             if (!IsInsideHole(ball))
@@ -76,7 +78,7 @@ public class Simulation : MonoBehaviour
         balls[ballIndex].Impulse(aceleration, acelerationDir);
 
         aceleration = 0.0f;
-        acelerationDir = Vector2.one;
+        acelerationDir = Vector2.left;
         rotation = 0.0f;
     }
 
@@ -159,7 +161,7 @@ public class Simulation : MonoBehaviour
 
     private void OnValidate()
     {
-        acelerationDir = RotateVector(Vector2.one, rotation);
+        acelerationDir = RotateVector(Vector2.left, rotation);
 
         aceleration = MathF.Max(aceleration, 0.0f);
 
