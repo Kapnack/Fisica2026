@@ -132,250 +132,210 @@ public class Ball
         float ballsDistance = otherToThisVector.magnitude;
         float minDist = radius + other.radius;
 
-        if (ballsDistance <= Mathf.Epsilon || ballsDistance > minDist)
+        if (ballsDistance <= Mathf.Epsilon)
             return;
 
         Vector2 otherToThisNormal = otherToThisVector / ballsDistance;
-        Vector2 otherBallNormal = other.velocity.normalized;
 
-        Vector2 otherFuturePos = other.position + other.velocity * deltaTime;
-        Vector2 otherFutureCollisionCheck = otherFuturePos + -velocity.normalized * radius;
-        otherFutureCollisionCheck = new Vector2(otherFutureCollisionCheck.x, otherFutureCollisionCheck.y);
+        // --- 1. CCD: mismo patrón que CheckWallCollision ---
+        // La "pared virtual" es el plano perpendicular entre las dos bolas
+        // usando la posición anterior de `other` como punto de referencia
+        float distPrev = Physics.Math.Dot(previousPosition - other.previousPosition, otherToThisNormal);
+        float distCurr = Physics.Math.Dot(position - other.position, otherToThisNormal);
 
-        float distPrev = Physics.Math.Dot(previousPosition - otherFutureCollisionCheck, otherFutureCollisionCheck);
-        float distCurr = Physics.Math.Dot(position - otherFutureCollisionCheck, otherFutureCollisionCheck);
-        //TODO: FIX THIS AAAAAAAAAAAAAAAAAAAAAA.
-        // Si los signos cambian, la bola cruzó el muro en este frame
         if (Mathf.Sign(distPrev) != Mathf.Sign(distCurr) || Mathf.Abs(distCurr) < minDist)
         {
             float collisionTime = 0;
             if (Mathf.Abs(distPrev - distCurr) > Mathf.Epsilon)
             {
-                // Interpolación lineal para hallar el punto exacto de contacto (Root Finding)
                 collisionTime = (distPrev - (Mathf.Sign(distPrev) * minDist)) / (distPrev - distCurr);
             }
 
             collisionTime = Mathf.Clamp01(collisionTime);
             Vector2 intersectPoint = Vector2.Lerp(previousPosition, position, collisionTime);
 
-            float projection = Physics.Math.Dot(intersectPoint - other.position, otherFutureCollisionCheck);
+            // Verificar que el punto de intersección es válido (las bolas se acercan)
+            Vector2 normal = otherToThisNormal * Mathf.Sign(distPrev);
+            Vector2 relativeVelocity = velocity - other.velocity;
 
-            if (projection >= 0 && projection <= other.velocity.magnitude)
-            {
-                Vector2 normal = otherBallNormal * Mathf.Sign(distPrev);
-                position = intersectPoint;
+            if (Physics.Math.Dot(relativeVelocity, normal) > 0)
+                return; // se alejan, ignorar
 
-                float minRestitution = Mathf.Min(restitution, other.restitution);
-
-                velocity = Reflect(velocity, normal, minRestitution);
-                other.velocity = Reflect(other.velocity, normal, minRestitution);
-
-                return;
-            }
-
-        //Vector2 otherFuturePos = other.Position * other.velocity * deltaTime;
-        //
-        //if (SegmentToSegment(previousPosition, Position, other.Position, otherFuturePos, out Vector2 intersectPoint))
-        //{
-        //    Vector2 otherBallFutDir = (otherFuturePos - other.position).normalized;
-        //    Vector2 normal = new Vector2(-otherBallFutDir.y, otherBallFutDir.x);
-        //
-        //    if (Vector2.Dot(normal, previousPosition - intersectPoint) < 0)
-        //        normal = -normal;
-        //
-        //    float combinedRadius = other.radius + radius;
-        //
-        //    Position = intersectPoint + (normal * combinedRadius);
-        //    velocity = Reflect(velocity, normal, restitution);
-        //
-        //    other.Position = intersectPoint + (-normal * combinedRadius);
-        //    other.velocity = Reflect(velocity, -normal, restitution);
-        //
-        //    ApplyBallPhysicsResponse(other, normal);
-        //
-        //    return;
-        //}
-
-        if (lineCircleCollision(previousPosition, position, other.Position, other.Radius))
-        {
-            Vector2 relativeVelocity = -velocity;
-            float velAlongNormal = Physics.Math.Dot(relativeVelocity, otherToThisNormal);
-
-            // Si se están alejando, no aplicar impulso
-            if (velAlongNormal > 0)
-                return;
+            position = intersectPoint;
 
             float invMassA = InvMass;
             float invMassB = other.InvMass;
             float denom = invMassA + invMassB;
 
-            if (denom <= 0 || Mathf.Approximately(denom, 0f)) return;
+            if (denom <= Mathf.Epsilon) return;
 
             float minRestitution = Mathf.Min(restitution, other.restitution);
-            // Fórmula de Impulso Normal (j)
-            float impulseCorrecction = (-(1 + minRestitution) * velAlongNormal) / denom;
+            float velAlongNormal = Physics.Math.Dot(relativeVelocity, normal);
+            float impulseScalar = (-(1 + minRestitution) * velAlongNormal) / denom;
 
-            Vector2 impulse = impulseCorrecction * otherToThisNormal;
+            Vector2 impulse = impulseScalar * normal;
             velocity += impulse * invMassA;
             other.velocity -= impulse * invMassB;
 
-            ApplyBallFriction(other, relativeVelocity, otherToThisNormal, impulseCorrecction, denom);
-
+            ApplyBallFriction(other, relativeVelocity, normal, impulseScalar, denom);
             return;
         }
+
+        // --- 2. Fallback estático (overlap) ---
+        if (ballsDistance > minDist) 
+            return; // recién acá tiene sentido este guard
+
+        ResolveBallOverlap(other, otherToThisNormal, minDist - ballsDistance);
+        ApplyBallPhysicsResponse(other, otherToThisNormal);
     }
 
-    ResolveBallOverlap(other, otherToThisNormal, minDist - ballsDistance);
-    ApplyBallPhysicsResponse(other, otherToThisNormal);
-}
-
-bool lineCircleCollision(Vector2 pointA, Vector2 pointB, Vector2 circlePos, float r)
-{
-
-    // is either end INSIDE the circle?
-    // if so, return true immediately
-    bool inside1 = pointCircle(pointA, circlePos, r);
-    bool inside2 = pointCircle(pointB, circlePos, r);
-
-    if (inside1 || inside2)
-        return true;
-
-    float distX = pointA.x - pointB.x;
-    float distY = pointA.y - pointB.y;
-    float len = Mathf.Sqrt((distX * distX) + (distY * distY));
-
-
-    float dot = Physics.Math.Dot(circlePos, pointA) / Mathf.Pow(len, 2);
-
-    // find the closest point on the line
-    float closestX = pointA.x + (dot * (pointB.x - pointA.x));
-    float closestY = pointA.y + (dot * (pointB.y - pointA.y));
-
-    // is this point actually on the line segment?
-    // if so keep going, but if not, return false
-    bool onSegment = linePoint(pointA, pointB, new Vector2(closestX, closestY));
-    if (!onSegment) return false;
-
-    // get distance to closest point
-    distX = closestX - circlePos.x;
-    distY = closestY - circlePos.y;
-    float distance = Mathf.Sqrt((distX * distX) + (distY * distY));
-
-    if (distance <= r)
+    bool lineCircleCollision(Vector2 pointA, Vector2 pointB, Vector2 circlePos, float r)
     {
-        return true;
-    }
-    return false;
-}
 
-bool linePoint(Vector2 pointA, Vector2 pointB, Vector2 proyected)
-{
+        // is either end INSIDE the circle?
+        // if so, return true immediately
+        bool inside1 = pointCircle(pointA, circlePos, r);
+        bool inside2 = pointCircle(pointB, circlePos, r);
 
-    // get distance from the point to the two ends of the line
-    float d1 = Vector2.Distance(proyected, pointA);
-    float d2 = Vector2.Distance(proyected, pointB);
+        if (inside1 || inside2)
+            return true;
 
-    // get the length of the line
-    float lineLen = Vector2.Distance(pointA, pointB);
+        float distX = pointA.x - pointB.x;
+        float distY = pointA.y - pointB.y;
+        float len = Mathf.Sqrt((distX * distX) + (distY * distY));
 
-    // since floats are so minutely accurate, add
-    // a little buffer zone that will give collision
-    float buffer = 0.1f;    // higher # = less accurate
 
-    // if the two distances are equal to the line's
-    // length, the point is on the line!
-    // note we use the buffer here to give a range,
-    // rather than one #
-    if (d1 + d2 >= lineLen - buffer && d1 + d2 <= lineLen + buffer)
-    {
-        return true;
-    }
-    return false;
-}
+        float dot = Physics.Math.Dot(circlePos, pointA) / Mathf.Pow(len, 2);
 
-bool pointCircle(Vector2 point, Vector2 circlePos, float r)
-{
-    // if the distance is less than the circle's
-    // radius the point is inside!
-    return Vector2.Distance(point, circlePos) <= r;
-}
+        // find the closest point on the line
+        float closestX = pointA.x + (dot * (pointB.x - pointA.x));
+        float closestY = pointA.y + (dot * (pointB.y - pointA.y));
 
-public bool SegmentToSegment(Vector2 point1A, Vector2 point1B, Vector2 point2A, Vector2 point2B, out Vector2 intersectPoint)
-{
-    intersectPoint = Vector2.zero;
-    Vector2 seg1Dir = point1B - point1A;
-    Vector2 seg2Dir = point2B - point2A;
-    Vector2 vectorAtoA = point1A - point2B;
+        // is this point actually on the line segment?
+        // if so keep going, but if not, return false
+        bool onSegment = linePoint(pointA, pointB, new Vector2(closestX, closestY));
+        if (!onSegment) return false;
 
-    float commonDeterminant = Physics.Math.Cross(seg1Dir, seg2Dir);
+        // get distance to closest point
+        distX = closestX - circlePos.x;
+        distY = closestY - circlePos.y;
+        float distance = Mathf.Sqrt((distX * distX) + (distY * distY));
 
-    if (Mathf.Abs(commonDeterminant) < float.Epsilon)
+        if (distance <= r)
+        {
+            return true;
+        }
         return false;
+    }
 
-    float detX = Physics.Math.Cross(seg2Dir, vectorAtoA) / commonDeterminant;
-    float detY = Physics.Math.Cross(seg1Dir, vectorAtoA) / commonDeterminant;
+    bool linePoint(Vector2 pointA, Vector2 pointB, Vector2 proyected)
+    {
 
-    bool isThereIntersection = (detX >= 0 && detX <= 1 &&
-                                detY >= 0 && detY <= 1);
+        // get distance from the point to the two ends of the line
+        float d1 = Vector2.Distance(proyected, pointA);
+        float d2 = Vector2.Distance(proyected, pointB);
 
-    intersectPoint = isThereIntersection ? new Vector2(
-        point1A.x + (detX * (point1B.x - point1A.x)),
-        point1A.y + (detX * (point1B.y - point1A.y))
-        ) : Vector2.zero;
+        // get the length of the line
+        float lineLen = Vector2.Distance(pointA, pointB);
 
-    return isThereIntersection;
-}
+        // since floats are so minutely accurate, add
+        // a little buffer zone that will give collision
+        float buffer = 0.1f;    // higher # = less accurate
 
-private void ResolveBallOverlap(Ball other, Vector2 normal, float penetration)
-{
-    Vector2 correction = normal * (penetration * 0.5f);
-    position += correction;
-    other.position -= correction;
-}
+        // if the two distances are equal to the line's
+        // length, the point is on the line!
+        // note we use the buffer here to give a range,
+        // rather than one #
+        if (d1 + d2 >= lineLen - buffer && d1 + d2 <= lineLen + buffer)
+        {
+            return true;
+        }
+        return false;
+    }
 
-private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
-{
-    Vector2 relativeVelocity = velocity - other.velocity;
-    float velAlongNormal = Physics.Math.Dot(relativeVelocity, normal);
+    bool pointCircle(Vector2 point, Vector2 circlePos, float r)
+    {
+        // if the distance is less than the circle's
+        // radius the point is inside!
+        return Vector2.Distance(point, circlePos) <= r;
+    }
 
-    // Si se están alejando, no aplicar impulso
-    if (velAlongNormal > 0)
-        return;
+    public bool SegmentToSegment(Vector2 point1A, Vector2 point1B, Vector2 point2A, Vector2 point2B, out Vector2 intersectPoint)
+    {
+        intersectPoint = Vector2.zero;
+        Vector2 seg1Dir = point1B - point1A;
+        Vector2 seg2Dir = point2B - point2A;
+        Vector2 vectorAtoA = point1A - point2B;
 
-    float invMassA = InvMass;
-    float invMassB = other.InvMass;
-    float denom = invMassA + invMassB;
+        float commonDeterminant = Physics.Math.Cross(seg1Dir, seg2Dir);
 
-    if (denom <= 0 || Mathf.Approximately(denom, 0f)) return;
+        if (Mathf.Abs(commonDeterminant) < float.Epsilon)
+            return false;
 
-    float minRestitution = Mathf.Min(restitution, other.restitution);
-    // Fórmula de Impulso Normal (j)
-    float impulseCorrecction = (-(1 + minRestitution) * velAlongNormal) / denom;
+        float detX = Physics.Math.Cross(seg2Dir, vectorAtoA) / commonDeterminant;
+        float detY = Physics.Math.Cross(seg1Dir, vectorAtoA) / commonDeterminant;
 
-    Vector2 impulse = impulseCorrecction * normal;
-    velocity += impulse * invMassA;
-    other.velocity -= impulse * invMassB;
+        bool isThereIntersection = (detX >= 0 && detX <= 1 &&
+                                    detY >= 0 && detY <= 1);
 
-    ApplyBallFriction(other, relativeVelocity, normal, impulseCorrecction, denom);
-}
+        intersectPoint = isThereIntersection ? new Vector2(
+            point1A.x + (detX * (point1B.x - point1A.x)),
+            point1A.y + (detX * (point1B.y - point1A.y))
+            ) : Vector2.zero;
 
-// Aplica fricción tangencial durante el choque (frena el deslizamiento entre bolas)
-private void ApplyBallFriction(Ball other, Vector2 relativeVelocity, Vector2 normal, float impulseCorrecction, float denom)
-{
-    Vector2 tangent = relativeVelocity - Project(relativeVelocity, normal);
+        return isThereIntersection;
+    }
 
-    if (tangent.sqrMagnitude > Mathf.Epsilon)
-        tangent.Normalize();
+    private void ResolveBallOverlap(Ball other, Vector2 normal, float penetration)
+    {
+        Vector2 correction = normal * (penetration * 0.5f);
+        position += correction;
+        other.position -= correction;
+    }
 
-    float relativeVelTangent = Physics.Math.Dot(relativeVelocity, tangent);
-    float tangencialImpulse = -relativeVelTangent / denom;
+    private void ApplyBallPhysicsResponse(Ball other, Vector2 normal)
+    {
+        Vector2 relativeVelocity = velocity - other.velocity;
+        float velAlongNormal = Physics.Math.Dot(relativeVelocity, normal);
 
-    // La fricción no puede ser mayor que la fuerza normal (Ley de Coulomb)
-    float coeficientFriction = (friction + other.friction) * 0.5f;
-    tangencialImpulse = Mathf.Clamp(tangencialImpulse, -impulseCorrecction * coeficientFriction, impulseCorrecction * coeficientFriction);
+        // Si se están alejando, no aplicar impulso
+        if (velAlongNormal > 0)
+            return;
 
-    Vector2 frictionImpulse = tangencialImpulse * tangent;
-    velocity += frictionImpulse * InvMass;
-    other.velocity -= frictionImpulse * other.InvMass;
-}
+        float invMassA = InvMass;
+        float invMassB = other.InvMass;
+        float denom = invMassA + invMassB;
+
+        if (denom <= 0 || Mathf.Approximately(denom, 0f)) return;
+
+        float minRestitution = Mathf.Min(restitution, other.restitution);
+        // Fórmula de Impulso Normal (j)
+        float impulseCorrecction = (-(1 + minRestitution) * velAlongNormal) / denom;
+
+        Vector2 impulse = impulseCorrecction * normal;
+        velocity += impulse * invMassA;
+        other.velocity -= impulse * invMassB;
+
+        ApplyBallFriction(other, relativeVelocity, normal, impulseCorrecction, denom);
+    }
+
+    // Aplica fricción tangencial durante el choque (frena el deslizamiento entre bolas)
+    private void ApplyBallFriction(Ball other, Vector2 relativeVelocity, Vector2 normal, float impulseCorrecction, float denom)
+    {
+        Vector2 tangent = relativeVelocity - Project(relativeVelocity, normal);
+
+        if (tangent.sqrMagnitude > Mathf.Epsilon)
+            tangent.Normalize();
+
+        float relativeVelTangent = Physics.Math.Dot(relativeVelocity, tangent);
+        float tangencialImpulse = -relativeVelTangent / denom;
+
+        // La fricción no puede ser mayor que la fuerza normal (Ley de Coulomb)
+        float coeficientFriction = (friction + other.friction) * 0.5f;
+        tangencialImpulse = Mathf.Clamp(tangencialImpulse, -impulseCorrecction * coeficientFriction, impulseCorrecction * coeficientFriction);
+
+        Vector2 frictionImpulse = tangencialImpulse * tangent;
+        velocity += frictionImpulse * InvMass;
+        other.velocity -= frictionImpulse * other.InvMass;
+    }
 }
