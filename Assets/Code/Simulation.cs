@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 [Serializable]
 public struct Hole
@@ -93,8 +94,25 @@ public class Simulation : MonoBehaviour
     {
         foreach (Hole hole in holes)
         {
-            if (Vector2.SqrMagnitude(ball.Position - hole.position) <= hole.radius * hole.radius)
+            float minDist = ball.Radius + hole.radius;
+
+            Vector2 segment = ball.Position - ball.PreviousPosition;
+            float segmentSqrMag = segment.sqrMagnitude;
+
+            float collisionTime = 0f;
+            if (segmentSqrMag > Mathf.Epsilon)
+            {
+                collisionTime = Physics.Math.Dot(hole.position - ball.PreviousPosition, segment) / segmentSqrMag;
+                collisionTime = Mathf.Clamp01(collisionTime);
+            }
+
+            Vector2 closestPoint = ball.PreviousPosition + segment * collisionTime;
+            float distSqr = (closestPoint - hole.position).sqrMagnitude;
+
+            if (distSqr <= minDist * minDist)
                 return true;
+
+            continue;
         }
 
         return false;
