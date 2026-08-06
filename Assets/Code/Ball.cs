@@ -137,9 +137,6 @@ public class Ball
 
         Vector2 otherToThisNormal = otherToThisVector / ballsDistance;
 
-        // --- 1. CCD: mismo patrón que CheckWallCollision ---
-        // La "pared virtual" es el plano perpendicular entre las dos bolas
-        // usando la posición anterior de `other` como punto de referencia
         float distPrev = Physics.Math.Dot(previousPosition - other.previousPosition, otherToThisNormal);
         float distCurr = Physics.Math.Dot(position - other.position, otherToThisNormal);
 
@@ -188,77 +185,6 @@ public class Ball
         ResolveBallOverlap(other, otherToThisNormal, minDist - ballsDistance);
         ApplyBallPhysicsResponse(other, otherToThisNormal);
     }
-
-    //bool lineCircleCollision(Vector2 pointA, Vector2 pointB, Vector2 circlePos, float r)
-    //{
-    //
-    //    // is either end INSIDE the circle?
-    //    // if so, return true immediately
-    //    bool inside1 = pointCircle(pointA, circlePos, r);
-    //    bool inside2 = pointCircle(pointB, circlePos, r);
-    //
-    //    if (inside1 || inside2)
-    //        return true;
-    //
-    //    float distX = pointA.x - pointB.x;
-    //    float distY = pointA.y - pointB.y;
-    //    float len = Mathf.Sqrt((distX * distX) + (distY * distY));
-    //
-    //
-    //    float dot = Physics.Math.Dot(circlePos, pointA) / Mathf.Pow(len, 2);
-    //
-    //    // find the closest point on the line
-    //    float closestX = pointA.x + (dot * (pointB.x - pointA.x));
-    //    float closestY = pointA.y + (dot * (pointB.y - pointA.y));
-    //
-    //    // is this point actually on the line segment?
-    //    // if so keep going, but if not, return false
-    //    bool onSegment = LinePoint(pointA, pointB, new Vector2(closestX, closestY));
-    //    if (!onSegment) return false;
-    //
-    //    // get distance to closest point
-    //    distX = closestX - circlePos.x;
-    //    distY = closestY - circlePos.y;
-    //    float distance = Mathf.Sqrt((distX * distX) + (distY * distY));
-    //
-    //    if (distance <= r)
-    //    {
-    //        return true;
-    //    }
-    //    return false;
-    //}
-    //
-    //bool LinePoint(Vector2 pointA, Vector2 pointB, Vector2 proyected)
-    //{
-    //
-    //    // get distance from the point to the two ends of the line
-    //    float d1 = Vector2.Distance(proyected, pointA);
-    //    float d2 = Vector2.Distance(proyected, pointB);
-    //
-    //    // get the length of the line
-    //    float lineLen = Vector2.Distance(pointA, pointB);
-    //
-    //    // since floats are so minutely accurate, add
-    //    // a little buffer zone that will give collision
-    //    float buffer = 0.1f;    // higher # = less accurate
-    //
-    //    // if the two distances are equal to the line's
-    //    // length, the point is on the line!
-    //    // note we use the buffer here to give a range,
-    //    // rather than one #
-    //    if (d1 + d2 >= lineLen - buffer && d1 + d2 <= lineLen + buffer)
-    //    {
-    //        return true;
-    //    }
-    //    return false;
-    //}
-
-    //bool pointCircle(Vector2 point, Vector2 circlePos, float r)
-    //{
-    //    // if the distance is less than the circle's
-    //    // radius the point is inside!
-    //    return Vector2.Distance(point, circlePos) <= r;
-    //}
 
     public bool SegmentToSegment(Vector2 point1A, Vector2 point1B, Vector2 point2A, Vector2 point2B, out Vector2 intersectPoint)
     {
