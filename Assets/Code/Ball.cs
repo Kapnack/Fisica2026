@@ -18,12 +18,15 @@ public class Ball
     public Vector2 Position
     {
         get => position;
-        private set
+        set
         {
             previousPosition = position;
             position = value;
         }
     }
+
+    public Vector2 PreviousPosition => previousPosition;
+    public Vector2 Velocity => velocity;
 
     public float Radius => radius;
     private float InvMass => (mass <= 0f) ? 0f : 1f / mass;
@@ -164,7 +167,8 @@ public class Ball
             float invMassB = other.InvMass;
             float denom = invMassA + invMassB;
 
-            if (denom <= Mathf.Epsilon) return;
+            if (denom <= Mathf.Epsilon)
+                return;
 
             float minRestitution = Mathf.Min(restitution, other.restitution);
             float velAlongNormal = Physics.Math.Dot(relativeVelocity, normal);
@@ -179,7 +183,7 @@ public class Ball
         }
 
         // --- 2. Fallback estático (overlap) ---
-        if (ballsDistance > minDist) 
+        if (ballsDistance > minDist)
             return; // recién acá tiene sentido este guard
 
         ResolveBallOverlap(other, otherToThisNormal, minDist - ballsDistance);
